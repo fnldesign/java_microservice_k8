@@ -10,6 +10,7 @@
 ![Tests](https://img.shields.io/badge/Tests-42%20passed-success?style=flat-square&logo=junit5&logoColor=white)
 ![Build](https://img.shields.io/badge/Build-Passing-success?style=flat-square&logo=github&logoColor=white)
 ![Coverage](https://img.shields.io/badge/Coverage-Complete-success?style=flat-square&logo=codecov&logoColor=white)
+![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue?style=flat-square&logo=githubactions&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
 > 🚀 **Microserviço completo e production-ready** com autenticação, persistência, testes e deployment em Kubernetes
@@ -46,241 +47,90 @@ Boilerplate de microserviço em Java com Spring Boot, **autenticação via API K
 
 ## 🏗️ Arquitetura
 
-### Visão Geral da Arquitetura Kubernetes
+O projeto segue uma arquitetura de **microsserviços cloud-native** com as seguintes características:
 
-```mermaid
-graph TB
-    subgraph "Cliente"
-        Client[🖥️ Cliente<br/>Browser/Postman/curl]
-    end
-    
-    subgraph "Kubernetes Cluster - kind"
-        subgraph "Service Layer"
-            Service[⚖️ Service<br/>LoadBalancer<br/>Port 8080]
-        end
-        
-        subgraph "Application Layer"
-            Pod1[📦 Pod<br/>java-microservice-k8]
-            Pod2[📦 Pod<br/>java-microservice-k8]
-            Pod3[📦 Pod<br/>java-microservice-k8]
-        end
-        
-        subgraph "Configuration"
-            Secret[🔐 Secret<br/>API Key]
-            ConfigMap[⚙️ ConfigMap<br/>App Config]
-        end
-        
-        subgraph "Storage Layer"
-            PVC[💾 PersistentVolumeClaim<br/>todos-pvc<br/>1Gi]
-            PV[🗄️ PersistentVolume<br/>todos-pv<br/>1Gi]
-        end
-        
-        subgraph "Monitoring"
-            MetricsServer[📊 metrics-server]
-        end
-    end
-    
-    Client -->|HTTP Request| Service
-    Service -->|Load Balance| Pod1
-    Service -->|Load Balance| Pod2
-    Service -->|Load Balance| Pod3
-    
-    Pod1 -.->|Read| Secret
-    Pod2 -.->|Read| Secret
-    Pod3 -.->|Read| Secret
-    
-    Pod1 -->|Mount| PVC
-    Pod2 -->|Mount| PVC
-    Pod3 -->|Mount| PVC
-    
-    PVC -->|Bound| PV
-    
-    MetricsServer -.->|Monitor| Pod1
-    MetricsServer -.->|Monitor| Pod2
-    MetricsServer -.->|Monitor| Pod3
-    
-    style Client fill:#e1f5ff
-    style Service fill:#fff4e1
-    style Pod1 fill:#e8f5e9
-    style Pod2 fill:#e8f5e9
-    style Pod3 fill:#e8f5e9
-    style Secret fill:#ffebee
-    style PVC fill:#f3e5f5
-    style PV fill:#f3e5f5
-    style MetricsServer fill:#fff9c4
+### Visão Geral
+
+- ✅ **Stateless**: Aplicação sem estado, escalável horizontalmente
+- ☸️ **Cloud-Native**: Deployment em Kubernetes com 3 réplicas
+- 🔒 **Seguro**: Autenticação via API Key com Spring Security
+- 💾 **Persistente**: H2 Database com PersistentVolumes
+- 📊 **Observável**: Logs JSON estruturados, métricas e health checks
+
+### Componentes Kubernetes
+
+| Componente | Função | Réplicas |
+|------------|--------|----------|
+| **Deployment** | Gerencia pods da aplicação | 3 |
+| **Service** | Load balancer interno | 1 |
+| **Secret** | Armazena API Key | 1 |
+| **PV/PVC** | Persistência de dados | 1Gi |
+| **metrics-server** | Coleta métricas | 1 |
+
+### Camadas da Aplicação
+
+```
+┌─────────────────────────────────────┐
+│  Presentation Layer                 │  Controllers REST + Swagger UI
+├─────────────────────────────────────┤
+│  Security Layer                     │  API Key Filter + Authorization
+├─────────────────────────────────────┤
+│  Business Layer                     │  Service Layer (lógica de negócio)
+├─────────────────────────────────────┤
+│  Data Layer                         │  Repository JPA + Entity
+├─────────────────────────────────────┤
+│  Persistence                        │  H2 Database (file-based)
+└─────────────────────────────────────┘
 ```
 
-### Fluxo de Request da API
+### Fluxo de Request
 
-```mermaid
-sequenceDiagram
-    participant C as 🖥️ Cliente
-    participant S as ⚖️ Service
-    participant P as 📦 Pod
-    participant F as 🛡️ API Key Filter
-    participant A as 🎯 Controller
-    participant R as 📚 Repository
-    participant DB as 💾 H2 Database
-
-    C->>S: HTTP Request<br/>(Header: X-API-Key)
-    S->>P: Forward Request
-    P->>F: Security Filter
-    
-    alt API Key válida
-        F->>A: Allow Request
-        A->>R: Query Data
-        R->>DB: SQL Query
-        DB-->>R: Result Set
-        R-->>A: Entity/List
-        A-->>P: Response 200 OK
-    else API Key inválida
-        F-->>P: Response 403 Forbidden
-    end
-    
-    P-->>S: Response
-    S-->>C: HTTP Response
+```
+Cliente → Service K8s → Pod → API Key Filter → Controller → Repository → H2 Database
 ```
 
-### Arquitetura da Aplicação (Camadas)
-
-```mermaid
-graph LR
-    subgraph "Presentation Layer"
-        REST[🌐 REST Controllers<br/>ApiController<br/>TodoController]
-        Swagger[📖 Swagger UI<br/>OpenAPI Docs]
-    end
-    
-    subgraph "Security Layer"
-        Filter[🛡️ API Key Filter<br/>Authentication]
-        Config[🔒 Security Config<br/>Authorization]
-    end
-    
-    subgraph "Business Layer"
-        Service[⚙️ Service Layer<br/>Business Logic]
-    end
-    
-    subgraph "Data Layer"
-        Repo[📚 Repository<br/>TodoRepository<br/>JPA]
-        Entity[📋 Entity<br/>Todo Model]
-    end
-    
-    subgraph "Persistence"
-        H2[(💾 H2 Database<br/>File-based<br/>/data/todos)]
-    end
-    
-    REST --> Filter
-    Swagger --> Filter
-    Filter --> Config
-    Config --> REST
-    REST --> Service
-    Service --> Repo
-    Repo --> Entity
-    Entity --> H2
-    
-    style REST fill:#e8f5e9
-    style Swagger fill:#e8f5e9
-    style Filter fill:#ffebee
-    style Config fill:#ffebee
-    style Service fill:#e1f5ff
-    style Repo fill:#f3e5f5
-    style Entity fill:#f3e5f5
-    style H2 fill:#fff4e1
-```
-
-### Deployment e Storage
-
-```mermaid
-graph TB
-    subgraph "Deployment Configuration"
-        Deploy[📋 Deployment<br/>java-microservice-k8<br/>replicas: 3]
-    end
-    
-    subgraph "Pod Template"
-        Container[🐳 Container<br/>Image: java-microservice-k8:local<br/>Port: 8080]
-        
-        subgraph "Environment"
-            EnvSecret[🔐 API_KEY<br/>from Secret]
-            EnvConfig[⚙️ Spring Config<br/>from ConfigMap]
-        end
-        
-        subgraph "Volume Mounts"
-            Mount[📁 Volume Mount<br/>/data]
-        end
-    end
-    
-    subgraph "Storage"
-        PVC[💾 PVC: todos-pvc<br/>AccessMode: ReadWriteOnce<br/>Size: 1Gi]
-        PV[🗄️ PV: todos-pv<br/>Type: hostPath<br/>/tmp/data]
-    end
-    
-    subgraph "Secrets"
-        Secret[🔐 Secret<br/>java-microservice-k8-secret<br/>api-key: base64]
-    end
-    
-    Deploy --> Container
-    Container --> EnvSecret
-    Container --> EnvConfig
-    Container --> Mount
-    
-    EnvSecret -.->|references| Secret
-    Mount -.->|mounts| PVC
-    PVC -.->|bound to| PV
-    
-    style Deploy fill:#e1f5ff
-    style Container fill:#e8f5e9
-    style EnvSecret fill:#ffebee
-    style Mount fill:#f3e5f5
-    style PVC fill:#f3e5f5
-    style PV fill:#f3e5f5
-    style Secret fill:#ffebee
-```
-
-### Estrutura de Dados (H2 Database)
-
-```mermaid
-erDiagram
-    TODO {
-        bigint id PK "Auto-generated"
-        varchar(255) title "NOT NULL"
-        varchar(500) description
-        boolean completed "DEFAULT false"
-        timestamp created_at "Auto-generated"
-        timestamp updated_at "Auto-updated"
-    }
-    
-    TODO ||--o{ API_REQUEST : "managed by"
-    
-    API_REQUEST {
-        string endpoint
-        string method
-        string api_key
-    }
-```
-
-### Componentes do Projeto
-
-| Componente | Tipo | Descrição | Arquivo |
-|------------|------|-----------|---------|
-| **Deployment** | Kubernetes | Gerencia réplicas dos pods | `k8s/deployment.yaml` |
-| **Service** | Kubernetes | Load balancer para pods | `k8s/service.yaml` |
-| **Secret** | Kubernetes | Armazena API Key | `k8s/secret.yaml` |
-| **PV/PVC** | Kubernetes | Persistência de dados | `k8s/persistent-volume.yaml` |
-| **metrics-server** | Kubernetes | Métricas de recursos | `k8s/metrics-server-patch.yaml` |
-| **Container** | Docker | Imagem da aplicação | `Dockerfile` |
-| **API Key Filter** | Spring Security | Autenticação customizada | `SecurityConfig.java` |
-| **Controllers** | Spring MVC | Endpoints REST | `*Controller.java` |
-| **Repository** | Spring Data JPA | Acesso ao banco | `TodoRepository.java` |
-| **Entity** | JPA | Modelo de dados | `Todo.java` |
-| **H2 Database** | Persistence | Banco de dados file-based | `/data/todos.mv.db` |
+📖 **Documentação completa de arquitetura**: Veja [ARCHITECTURE.md](docs/ARCHITECTURE.md) para:
+- Diagramas detalhados (Kubernetes, fluxo de dados, camadas)
+- Especificações técnicas de cada componente
+- Estratégias de escalabilidade
+- Modelo de dados completo
+- Segurança e observabilidade
 
 ## 📁 Estrutura do Projeto
 
-- `pom.xml` - Maven build
-- `src/main/java/...` - código fonte (controllers, models, config)
-- `src/main/resources/` - configurações (application.properties, logback)
-- `Dockerfile` - para construir imagem
-- `k8s/` - manifests Kubernetes (deployment, service, secrets, volumes)
-- `postman_collection.json` - collection do Postman
+```
+java-microservice-k8/
+├── .github/                     # GitHub Actions workflows e templates
+│   ├── workflows/               # CI/CD pipelines
+│   └── ISSUE_TEMPLATE/          # Templates de issues
+├── docs/                        # 📚 Documentação técnica
+│   ├── ARCHITECTURE.md          # Arquitetura completa
+│   ├── CI-CD.md                 # Guia CI/CD
+│   ├── TESTING.md               # Documentação de testes
+│   └── DOCKER_KIND_SETUP.md     # Setup de ambiente
+├── k8s/                         # Manifests Kubernetes
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── secret.yaml
+│   └── persistent-volume.yaml
+├── src/
+│   ├── main/
+│   │   ├── java/.../microservice/
+│   │   │   ├── config/          # Configurações
+│   │   │   ├── controller/      # REST Controllers
+│   │   │   ├── model/           # Entidades JPA
+│   │   │   └── repository/      # Spring Data Repos
+│   │   └── resources/
+│   │       ├── application.properties
+│   │       └── logback-spring.xml
+│   └── test/                    # Testes
+├── Dockerfile                   # Multi-stage build
+├── pom.xml                      # Maven config
+├── postman_collection.json      # Postman collection
+├── README.md                    # Este arquivo
+├── CONTRIBUTING.md              # Guia de contribuição
+└── LICENSE                      # Licença MIT
+```
 
 ## � Quick Start
 
@@ -313,7 +163,7 @@ curl -H "X-API-Key: my-super-secret-api-key-2024" http://localhost:8080/api/heal
 - (opcional) **Maven** e **JDK 17** se quiser build local sem Docker
 - (opcional) **Postman** para testar a API
 
-> **💡 Não tem Docker/kind instalado?** Veja o guia completo de instalação: [DOCKER_KIND_SETUP.md](DOCKER_KIND_SETUP.md)
+> **💡 Não tem Docker/kind instalado?** Veja o guia completo de instalação: [DOCKER_KIND_SETUP.md](docs/DOCKER_KIND_SETUP.md)
 >
 > **Observação:** Os comandos abaixo consideram PowerShell no Windows. Ajuste se usar outro shell.
 
@@ -545,7 +395,7 @@ mvn verify -Pintegration-tests
 mvn package -DskipTests
 ```
 
-📖 **Documentação completa de testes**: Veja [TESTING.md](TESTING.md) para:
+📖 **Documentação completa de testes**: Veja [TESTING.md](docs/TESTING.md) para:
 - Estrutura de testes
 - Configurações
 - Exemplos de pipelines CI/CD (GitHub Actions, GitLab CI, Jenkins)
@@ -576,6 +426,12 @@ mvn package -DskipTests
 - `src/.../model/Todo.java` - Entidade JPA
 - `src/.../repository/TodoRepository.java` - Repository JPA
 - `src/.../controller/TodoController.java` - CRUD de TODOs
+- `docs/ARCHITECTURE.md` - Documentação completa da arquitetura
+- `docs/CI-CD.md` - Guia de CI/CD com GitHub Actions
+- `docs/TESTING.md` - Documentação de testes
+- `docs/DOCKER_KIND_SETUP.md` - Guia de instalação
+- `CONTRIBUTING.md` - Guia de contribuição
+- `LICENSE` - Licença MIT
 
 ---
 
@@ -641,12 +497,75 @@ kubectl describe pvc todos-pvc
 
 ---
 
+## � CI/CD Pipeline
+
+Este projeto possui uma **esteira completa de CI/CD** com GitHub Actions:
+
+### Workflows Automatizados
+
+- ✅ **CI - Build and Test**: Executa em cada push/PR
+  - Testes unitários (28 testes)
+  - Testes de integração (14 testes)
+  - Build Maven e Docker
+  - Verificação de segurança (Trivy)
+  
+- 🚀 **Release**: Acionado por tags `v*.*.*`
+  - Publica imagens no GitHub Container Registry (ghcr.io)
+  - Cria releases com changelog automático
+  - Anexa artefatos (JAR, K8s manifests, docs)
+  
+- 🐳 **Docker Latest**: Publica imagem `latest` em cada merge para main
+  - Multi-arquitetura (amd64, arm64)
+  
+- 📊 **Dependency Update**: Semanal (segunda-feira 9h UTC)
+  - Verifica atualizações de dependências
+  - Escaneia vulnerabilidades (OWASP)
+
+### Criar uma Release
+
+```bash
+# 1. Criar e push tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# 2. GitHub Actions automaticamente:
+# - Cria release no GitHub
+# - Publica imagem: ghcr.io/SEU-USUARIO/java-microservice-k8:v1.0.0
+# - Gera changelog
+# - Anexa artefatos
+```
+
+### Usar Imagem Publicada
+
+```bash
+# Pull da imagem
+docker pull ghcr.io/SEU-USUARIO/java-microservice-k8:latest
+
+# Carregar no kind
+kind load docker-image ghcr.io/SEU-USUARIO/java-microservice-k8:v1.0.0 --name kind-cluster
+
+# Deploy
+kubectl apply -f k8s/
+```
+
+📖 **Documentação completa de CI/CD**: Veja [CI-CD.md](docs/CI-CD.md) para:
+- Detalhes de todos os workflows
+- Configuração do GitHub Container Registry
+- Deploy em clusters cloud (GKE, EKS, AKS)
+- GitOps com ArgoCD
+- Troubleshooting
+
+---
+
 ## 📚 Documentação Adicional
 
-- 📖 **[Guia de Testes](TESTING.md)** - Testes unitários, integração e CI/CD pipelines
-- 🐳 **[Guia de Instalação: Docker, kind e kubectl](DOCKER_KIND_SETUP.md)** - Instruções detalhadas para Windows e Linux
+- 🏗️ **[Arquitetura](docs/ARCHITECTURE.md)** - Diagramas detalhados, componentes e fluxos do sistema
+- 🔄 **[CI/CD Pipeline](docs/CI-CD.md)** - GitHub Actions, releases e deploy automatizado
+- 📖 **[Guia de Testes](docs/TESTING.md)** - Testes unitários, integração e CI/CD pipelines
+- 🐳 **[Guia de Instalação: Docker, kind e kubectl](docs/DOCKER_KIND_SETUP.md)** - Instruções detalhadas para Windows e Linux
 - 📋 **[Swagger UI](http://localhost:8080/swagger-ui/index.html)** - Documentação interativa da API (requer port-forward ativo)
 - 📦 **[Postman Collection](postman_collection.json)** - Collection para testar todos os endpoints
+- 🤝 **[Guia de Contribuição](CONTRIBUTING.md)** - Como contribuir com o projeto
 - 📘 **[Kubernetes Docs](https://kubernetes.io/docs/)** - Documentação oficial do Kubernetes
 - 🍃 **[Spring Boot Docs](https://spring.io/projects/spring-boot)** - Documentação oficial do Spring Boot
 

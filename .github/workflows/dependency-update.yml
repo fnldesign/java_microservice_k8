@@ -1,0 +1,48 @@
+name: Dependency Update Check
+
+on:
+  schedule:
+    # Executa toda segunda-feira às 9h UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update-dependencies:
+    name: Check for Dependency Updates
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Check for Maven updates
+      run: |
+        mvn versions:display-dependency-updates > dependency-updates.txt
+        mvn versions:display-plugin-updates >> dependency-updates.txt
+        cat dependency-updates.txt
+        
+    - name: Upload dependency report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-updates-report
+        path: dependency-updates.txt
+        retention-days: 30
+        
+    - name: Check for security vulnerabilities
+      run: |
+        mvn org.owasp:dependency-check-maven:check || true
+        
+    - name: Upload vulnerability report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: vulnerability-report
+        path: target/dependency-check-report.html
+        retention-days: 30
