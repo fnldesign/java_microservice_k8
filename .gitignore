@@ -178,3 +178,6 @@ application-local.properties
 
 # JAR content listing (temporary file)
 jar-contents.txt
+
+# Artigo e conteúdo de divulgação (não versionado)
+artigo/

@@ -353,6 +353,22 @@ Se tiver dúvidas sobre como contribuir:
 - Abra uma issue com a tag `question`
 - Entre em contato com os mantenedores
 
+### 👨‍💻 Mantenedor
+
+**Flavio Lopes** - Engenheiro de Dados
+
+- 💼 [LinkedIn: Flavio Lopes](https://www.linkedin.com/in/flavionlopes/)
+- 🐙 [GitHub: @fnldesign](https://github.com/fnldesign)
+
+### 📚 Dados na Prática
+
+Este projeto faz parte da iniciativa **Dados na Prática**, uma comunidade dedicada a compartilhar conhecimento em Engenharia de Dados, DevOps e Cloud Computing.
+
+- 🏢 [LinkedIn: Dados na Prática](https://www.linkedin.com/company/dados-na-pratica)
+- 🔗 [GitHub: @dadosnapratica](https://github.com/dadosnapratica)
+
+Junte-se à comunidade para aprender e compartilhar experiências sobre tecnologias de dados e boas práticas de desenvolvimento!
+
 ## 🙏 Agradecimentos
 
 Obrigado por dedicar seu tempo para melhorar este projeto!

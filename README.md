@@ -614,6 +614,24 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 ---
 
+## 👨‍💻 Sobre o Autor
+
+Este projeto foi desenvolvido por **Flavio Lopes**, Engenheiro de Dados e entusiasta de Cloud Computing e DevOps.
+
+- 💼 [LinkedIn: Flavio Lopes](https://www.linkedin.com/in/flavionlopes/)
+- 🐙 [GitHub: @fnldesign](https://github.com/fnldesign)
+
+### 📚 Dados na Prática
+
+Este projeto faz parte da iniciativa **Dados na Prática**, uma comunidade focada em compartilhar conhecimento sobre Engenharia de Dados, DevOps, Cloud Computing e boas práticas de desenvolvimento.
+
+- 🏢 [LinkedIn: Dados na Prática](https://www.linkedin.com/company/dados-na-pratica)
+- 🔗 [GitHub: @dadosnapratica](https://github.com/dadosnapratica)
+
+**Missão**: Democratizar o conhecimento em tecnologias de dados e engenharia de software, fornecendo projetos práticos, tutoriais e exemplos reais de aplicações em produção.
+
+---
+
 <div align="center">
 
 **Desenvolvido com ❤️ usando Spring Boot + Kubernetes**
