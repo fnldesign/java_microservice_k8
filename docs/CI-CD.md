@@ -35,10 +35,15 @@ Como este é um projeto Kubernetes que não pode ser deployado em plataformas se
 
 **Jobs**:
 - 🧪 **Test**: Executa testes unitários e de integração
+  - Permissões: `contents: read`, `checks: write`
 - 🔨 **Build**: Compila o projeto e gera o JAR
+  - Permissões: `contents: read`
 - 🐳 **Docker**: Constrói e testa a imagem Docker
+  - Permissões: `contents: read`
 - 📊 **Quality**: Verifica formatação e qualidade do código
+  - Permissões: `contents: read`
 - 🔒 **Security**: Escaneia vulnerabilidades com Trivy
+  - Permissões: `contents: read`, `security-events: write`
 
 ```yaml
 # Executado automaticamente em:
@@ -324,27 +329,107 @@ mvn clean verify
 **Problema**: Erro de permissão ao publicar
 
 **Solução**:
+
 1. Verificar se `permissions` está correto no workflow
 2. Para repos de organizações, habilitar packages no Settings
 
 ### Tests Falham no CI mas passam localmente
 
 **Possíveis causas**:
+
 - Diferenças de timezone (usar UTC nos testes)
 - Dependências de ordem de execução
 - Estado compartilhado entre testes
 
 **Solução**:
+
 ```bash
 # Executar testes em ordem aleatória
 mvn test -Dsurefire.runOrder=random
 ```
+
+### ⚠️ Security Scan - "Resource not accessible by integration"
+
+**Problema**: CodeQL Action falha ao fazer upload do SARIF para GitHub Security tab
+
+**Erro típico**:
+
+```text
+HttpError: Resource not accessible by integration
+https://docs.github.com/rest/reference/code-scanning
+```
+
+**Solução**: Adicionar permissão `security-events: write` no job de security:
+
+```yaml
+jobs:
+  security:
+    permissions:
+      contents: read
+      security-events: write  # ← OBRIGATÓRIO para SARIF upload
+```
+
+### ⚠️ Run Tests - "Process completed with exit code 1"
+
+**Problema**: Testes falham no GitHub Actions mas passam localmente
+
+**Erro típico**:
+
+```text
+Error: Process completed with exit code 1.
+HttpError: Resource not accessible by integration
+```
+
+**Solução**: Adicionar permissões necessárias no job de test:
+
+```yaml
+jobs:
+  test:
+    permissions:
+      contents: read
+      checks: write  # ← Para publicar resultados de testes
+```
+
+### 🔐 Permissões do GitHub Actions
+
+Por padrão, o GITHUB_TOKEN tem permissões restritas. É necessário declarar explicitamente:
+
+```yaml
+# Nível de workflow (aplica a todos os jobs)
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+# Ou nível de job (mais específico)
+jobs:
+  security:
+    permissions:
+      contents: read
+      security-events: write
+```
+
+**Permissões por Job**:
+
+| Job | Permissões Necessárias | Motivo |
+|-----|------------------------|--------|
+| `test` | `contents: read`, `checks: write` | Publicar resultados de testes |
+| `build` | `contents: read` | Ler código-fonte |
+| `docker` | `contents: read` | Ler Dockerfile |
+| `quality` | `contents: read` | Análise de código |
+| `security` | `contents: read`, `security-events: write` | Upload SARIF |
+
+**Referências**:
+
+- [GitHub Actions Permissions](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs)
+- [CodeQL SARIF Upload](https://github.com/github/codeql-action#upload-sarif)
 
 ### Release não cria changelog
 
 **Problema**: Changelog vazio
 
 **Solução**:
+
 - Usar Conventional Commits (feat:, fix:, docs:)
 - Adicionar labels aos PRs (feature, bug, documentation)
 
