@@ -44,6 +44,235 @@ Boilerplate de microserviço em Java com Spring Boot, **autenticação via API K
 | **Orquestração** | Kubernetes (kind cluster) |
 | **Monitoramento** | Actuator + metrics-server |
 
+## 🏗️ Arquitetura
+
+### Visão Geral da Arquitetura Kubernetes
+
+```mermaid
+graph TB
+    subgraph "Cliente"
+        Client[🖥️ Cliente<br/>Browser/Postman/curl]
+    end
+    
+    subgraph "Kubernetes Cluster - kind"
+        subgraph "Service Layer"
+            Service[⚖️ Service<br/>LoadBalancer<br/>Port 8080]
+        end
+        
+        subgraph "Application Layer"
+            Pod1[📦 Pod<br/>java-microservice-k8]
+            Pod2[📦 Pod<br/>java-microservice-k8]
+            Pod3[📦 Pod<br/>java-microservice-k8]
+        end
+        
+        subgraph "Configuration"
+            Secret[🔐 Secret<br/>API Key]
+            ConfigMap[⚙️ ConfigMap<br/>App Config]
+        end
+        
+        subgraph "Storage Layer"
+            PVC[💾 PersistentVolumeClaim<br/>todos-pvc<br/>1Gi]
+            PV[🗄️ PersistentVolume<br/>todos-pv<br/>1Gi]
+        end
+        
+        subgraph "Monitoring"
+            MetricsServer[📊 metrics-server]
+        end
+    end
+    
+    Client -->|HTTP Request| Service
+    Service -->|Load Balance| Pod1
+    Service -->|Load Balance| Pod2
+    Service -->|Load Balance| Pod3
+    
+    Pod1 -.->|Read| Secret
+    Pod2 -.->|Read| Secret
+    Pod3 -.->|Read| Secret
+    
+    Pod1 -->|Mount| PVC
+    Pod2 -->|Mount| PVC
+    Pod3 -->|Mount| PVC
+    
+    PVC -->|Bound| PV
+    
+    MetricsServer -.->|Monitor| Pod1
+    MetricsServer -.->|Monitor| Pod2
+    MetricsServer -.->|Monitor| Pod3
+    
+    style Client fill:#e1f5ff
+    style Service fill:#fff4e1
+    style Pod1 fill:#e8f5e9
+    style Pod2 fill:#e8f5e9
+    style Pod3 fill:#e8f5e9
+    style Secret fill:#ffebee
+    style PVC fill:#f3e5f5
+    style PV fill:#f3e5f5
+    style MetricsServer fill:#fff9c4
+```
+
+### Fluxo de Request da API
+
+```mermaid
+sequenceDiagram
+    participant C as 🖥️ Cliente
+    participant S as ⚖️ Service
+    participant P as 📦 Pod
+    participant F as 🛡️ API Key Filter
+    participant A as 🎯 Controller
+    participant R as 📚 Repository
+    participant DB as 💾 H2 Database
+
+    C->>S: HTTP Request<br/>(Header: X-API-Key)
+    S->>P: Forward Request
+    P->>F: Security Filter
+    
+    alt API Key válida
+        F->>A: Allow Request
+        A->>R: Query Data
+        R->>DB: SQL Query
+        DB-->>R: Result Set
+        R-->>A: Entity/List
+        A-->>P: Response 200 OK
+    else API Key inválida
+        F-->>P: Response 403 Forbidden
+    end
+    
+    P-->>S: Response
+    S-->>C: HTTP Response
+```
+
+### Arquitetura da Aplicação (Camadas)
+
+```mermaid
+graph LR
+    subgraph "Presentation Layer"
+        REST[🌐 REST Controllers<br/>ApiController<br/>TodoController]
+        Swagger[📖 Swagger UI<br/>OpenAPI Docs]
+    end
+    
+    subgraph "Security Layer"
+        Filter[🛡️ API Key Filter<br/>Authentication]
+        Config[🔒 Security Config<br/>Authorization]
+    end
+    
+    subgraph "Business Layer"
+        Service[⚙️ Service Layer<br/>Business Logic]
+    end
+    
+    subgraph "Data Layer"
+        Repo[📚 Repository<br/>TodoRepository<br/>JPA]
+        Entity[📋 Entity<br/>Todo Model]
+    end
+    
+    subgraph "Persistence"
+        H2[(💾 H2 Database<br/>File-based<br/>/data/todos)]
+    end
+    
+    REST --> Filter
+    Swagger --> Filter
+    Filter --> Config
+    Config --> REST
+    REST --> Service
+    Service --> Repo
+    Repo --> Entity
+    Entity --> H2
+    
+    style REST fill:#e8f5e9
+    style Swagger fill:#e8f5e9
+    style Filter fill:#ffebee
+    style Config fill:#ffebee
+    style Service fill:#e1f5ff
+    style Repo fill:#f3e5f5
+    style Entity fill:#f3e5f5
+    style H2 fill:#fff4e1
+```
+
+### Deployment e Storage
+
+```mermaid
+graph TB
+    subgraph "Deployment Configuration"
+        Deploy[📋 Deployment<br/>java-microservice-k8<br/>replicas: 3]
+    end
+    
+    subgraph "Pod Template"
+        Container[🐳 Container<br/>Image: java-microservice-k8:local<br/>Port: 8080]
+        
+        subgraph "Environment"
+            EnvSecret[🔐 API_KEY<br/>from Secret]
+            EnvConfig[⚙️ Spring Config<br/>from ConfigMap]
+        end
+        
+        subgraph "Volume Mounts"
+            Mount[📁 Volume Mount<br/>/data]
+        end
+    end
+    
+    subgraph "Storage"
+        PVC[💾 PVC: todos-pvc<br/>AccessMode: ReadWriteOnce<br/>Size: 1Gi]
+        PV[🗄️ PV: todos-pv<br/>Type: hostPath<br/>/tmp/data]
+    end
+    
+    subgraph "Secrets"
+        Secret[🔐 Secret<br/>java-microservice-k8-secret<br/>api-key: base64]
+    end
+    
+    Deploy --> Container
+    Container --> EnvSecret
+    Container --> EnvConfig
+    Container --> Mount
+    
+    EnvSecret -.->|references| Secret
+    Mount -.->|mounts| PVC
+    PVC -.->|bound to| PV
+    
+    style Deploy fill:#e1f5ff
+    style Container fill:#e8f5e9
+    style EnvSecret fill:#ffebee
+    style Mount fill:#f3e5f5
+    style PVC fill:#f3e5f5
+    style PV fill:#f3e5f5
+    style Secret fill:#ffebee
+```
+
+### Estrutura de Dados (H2 Database)
+
+```mermaid
+erDiagram
+    TODO {
+        bigint id PK "Auto-generated"
+        varchar(255) title "NOT NULL"
+        varchar(500) description
+        boolean completed "DEFAULT false"
+        timestamp created_at "Auto-generated"
+        timestamp updated_at "Auto-updated"
+    }
+    
+    TODO ||--o{ API_REQUEST : "managed by"
+    
+    API_REQUEST {
+        string endpoint
+        string method
+        string api_key
+    }
+```
+
+### Componentes do Projeto
+
+| Componente | Tipo | Descrição | Arquivo |
+|------------|------|-----------|---------|
+| **Deployment** | Kubernetes | Gerencia réplicas dos pods | `k8s/deployment.yaml` |
+| **Service** | Kubernetes | Load balancer para pods | `k8s/service.yaml` |
+| **Secret** | Kubernetes | Armazena API Key | `k8s/secret.yaml` |
+| **PV/PVC** | Kubernetes | Persistência de dados | `k8s/persistent-volume.yaml` |
+| **metrics-server** | Kubernetes | Métricas de recursos | `k8s/metrics-server-patch.yaml` |
+| **Container** | Docker | Imagem da aplicação | `Dockerfile` |
+| **API Key Filter** | Spring Security | Autenticação customizada | `SecurityConfig.java` |
+| **Controllers** | Spring MVC | Endpoints REST | `*Controller.java` |
+| **Repository** | Spring Data JPA | Acesso ao banco | `TodoRepository.java` |
+| **Entity** | JPA | Modelo de dados | `Todo.java` |
+| **H2 Database** | Persistence | Banco de dados file-based | `/data/todos.mv.db` |
+
 ## 📁 Estrutura do Projeto
 
 - `pom.xml` - Maven build
