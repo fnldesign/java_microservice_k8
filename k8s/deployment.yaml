@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-microservice-k8
+  labels:
+    app: java-microservice-k8
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-microservice-k8
+  template:
+    metadata:
+      labels:
+        app: java-microservice-k8
+    spec:
+      containers:
+        - name: java-microservice-k8
+          image: java-microservice-k8:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: java-microservice-k8-secret
+                  key: api-key
+          volumeMounts:
+            - name: todos-storage
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: todos-storage
+          persistentVolumeClaim:
+            claimName: todos-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-microservice-k8
+spec:
+  selector:
+    app: java-microservice-k8
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
